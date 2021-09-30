@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <svg id='chart0'></svg>
+
+    <script src='https://d3js.org/d3.v7.min.js'></script>
+    <script type='module'>
+      import { signal_to_path } from './vislib.js';
+
+      // signal_map maps from signal names to signal values.
+      //
+      // Signal values are arrays of [start_time, signal_value] pairs. The
+      // signal maintains 'value' until the next pair's start_time.
+      const signal_map = new Map([
+          ['a', [[0, 0], [1, 0], [2, 1], [3, 1]]],
+          ['b', [[0, 0], [1, 1], [2, 0], [3, 1]]],
+          ['xor', [[0, 0], [1, 1], [2, 1], [3, 0]]],
+      ]);
+
+      // Find start and end times. Use signal_to_path to convert [start_time,
+      // signal_value] pairs to line drawing coordinates.
+      let start_time = -1;
+      let end_time = -1;
+      let signal_lines = new Map();
+      for (const [signal_name, current_signal] of signal_map.entries()) {
+          for (let j = 0; j < current_signal.length; j++) {
+              let current_time = current_signal[j][0];
+              if (start_time == -1 || current_time < start_time)
+                  start_time = current_time;
+              if (end_time == -1 || current_time > end_time)
+                  end_time = current_time;
+              signal_lines.set(signal_name, signal_to_path(current_signal))
+          }
+      }
+
+      const margin = ({top: 10, right: 10, bottom: 20, left: 50})
+      const width = 1000;
+      const height = 500
+      const y_band = d3.scaleBand()
+                  .domain(signal_lines.keys())
+                  .range([0 + margin.top, height - margin.bottom])
+                  .padding(.2);
+
+      const svg = d3.select('svg#chart0')
+                    .attr('width', width)
+                    .attr('height', height)
+
+      function fade_in(event, d) {
+          d3.select(this).select('path')
+            .attr('stroke', 'black');
+      }
+      function fade_out(event, d) {
+          d3.select(this).select('path')
+            .attr('stroke', 'steelblue');
+      }
+
+      const row = svg.selectAll('g')
+                     .data(signal_lines)
+                     .join('g')
+                     .attr('transform', d => `translate(0,${y_band(d[0])})`)
+                     .on('mouseover', fade_in)
+                     .on('mouseout', fade_out);
+      const x = d3.scaleLinear()
+                  .domain([start_time, end_time])
+                  .range([0 + margin.left, width - margin.right]);
+
+      const y = d3.scaleLinear()
+      // Invert the y-axis so lower values are on the bottom of the screen.
+                  .domain([1, 0])
+                  .range([0, y_band.bandwidth()]);
+      const line = d3.line()
+                     .x(d => x(d[0]))
+                     .y(d => y(d[1]));
+
+      row.append('path')
+         .attr('d', d => line(d[1]))
+         .attr('stroke', 'steelblue')
+         .attr('fill', 'none');
+
+      row.append('rect')
+         .attr('x', x(0))
+         .attr('y', y(1))
+         .attr('width', x(end_time))
+         .attr('height', y(0))
+         .attr('opacity', 0);
+
+      svg.append('g')
+         .call(d3.axisBottom(x).ticks(end_time - start_time))
+         .attr('transform', `translate(0,${height - margin.bottom})`)
+      svg.append('g')
+         .call(d3.axisLeft(y_band))
+         .attr('transform', `translate(${margin.left},0)`);
+      svg.selectAll('.tick text')
+         .attr('font-size', 12);
+    </script>
+  </body>
+</html>
