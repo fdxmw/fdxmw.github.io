@@ -49,10 +49,14 @@
 
       function fade_in(event, d) {
           d3.select(this).select('path')
-            .attr('stroke', 'black');
+            .transition()
+            .duration(100)
+            .attr('stroke', 'darkred');
       }
       function fade_out(event, d) {
           d3.select(this).select('path')
+            .transition()
+            .duration(100)
             .attr('stroke', 'steelblue');
       }
 
